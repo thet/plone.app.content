@@ -33,7 +33,7 @@
           Description
       </p>
 
-      <form name="folderContentsForm"
+      <form
             method="post"
             action="folder_object"
             tal:attributes="action context/absolute_url">
