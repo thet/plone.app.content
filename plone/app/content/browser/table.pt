@@ -29,6 +29,7 @@
     <table class="listing"
            id="listing-table"
            summary="Content listing"
+           tal:condition="view/batch"
            i18n:attributes="summary summary_content_listing;">
       <thead>
 	<tal:block condition="view/items">
