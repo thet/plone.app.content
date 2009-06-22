@@ -53,7 +53,11 @@ Changelog
   from the context view, instead of a Python Script.
   [hannosch]
 
-1.4.1 - Unreleased
+1.6 - unreleased
+------------------
+
+
+1.5 - 2009-05-16
 ------------------
 
 - Correct detection if an item in the review list is folderish.
@@ -64,7 +68,7 @@ Changelog
   Partially fixes http://dev.plone.org/plone/ticket/8926
   [csenger]
 
-- Translate the name of the content types in full_review_list, 
+- Translate the name of the content types in full_review_list,
   add tests. This fixes http://dev.plone.org/plone/ticket/9164
   [csenger]
 
@@ -167,4 +171,3 @@ Changelog
 
 - Fixed missing i18n markup on the folder contents view.
   [hannosch]
-
