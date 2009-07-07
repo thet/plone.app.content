@@ -1,12 +1,8 @@
 Changelog
 =========
 
-2.0 - Unreleased
+3.0 - Unreleased
 ----------------
-
-- Moved the INameChooser to an overrides.zcml as CMFCore has grown a
-  conflicting name chooser itself.
-  [hannosch]
 
 - Updated to new version of zope.container.
   [hannosch]
@@ -39,13 +35,6 @@ Changelog
 - Avoid imports from Products.CMFPlone.
   [hannosch]
 
-- Removed PortalContent.__init__ call including an id argument from Item, as
-  there's no base class which accepts this argument.
-  [hannosch]
-
-- Added package dependencies.
-  [hannosch]
-
 - Made the tests less fragile in regard to browser errors.
   [hannosch]
 
@@ -53,12 +42,28 @@ Changelog
   from the context view, instead of a Python Script.
   [hannosch]
 
+
+2.0 - unreleased
+----------------
+
+- Moved the INameChooser to an overrides.zcml as CMFCore has grown a
+  conflicting name chooser itself.
+  [hannosch]
+
+- Removed PortalContent.__init__ call including an id argument from Item, as
+  there's no base class which accepts this argument.
+  [hannosch]
+
+- Added package dependencies.
+  [hannosch]
+
+
 1.6 - unreleased
-------------------
+----------------
 
 
 1.5 - 2009-05-16
-------------------
+----------------
 
 - Correct detection if an item in the review list is folderish.
   Partially fixes http://dev.plone.org/plone/ticket/8926
