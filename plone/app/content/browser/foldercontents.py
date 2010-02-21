@@ -12,6 +12,7 @@ from Acquisition import aq_parent, aq_inner
 from OFS.interfaces import IOrderedContainer
 from Products.ATContentTypes.interface import IATTopic
 from Products.CMFCore.utils import getToolByName
+from Products.CMFCore.WorkflowCore import WorkflowException
 from Products.CMFPlone.interfaces import IPloneSiteRoot
 from Products.CMFPlone.utils import safe_unicode
 from Products.CMFPlone.utils import pretty_title_or_id, isExpired
@@ -20,6 +21,20 @@ from plone.app.content.browser.interfaces import IFolderContentsView
 from plone.app.content.browser.interfaces import IContentsPage
 from plone.app.content.browser.tableview import Table, TableKSSView
 
+class LazyDict(dict):
+    """A dictionary that only sets all its items on the first 
+    access of any key."""
+
+    def __init__(self, func, *args, **kwargs):
+        dict.__init__(self, *args, **kwargs)
+        self.func = func
+        self._initialized = False
+
+    def __getitem__(self, key):
+        if not self._initialized:
+            self._initialized = True
+            self.update(self.func(self))
+        return dict.__getitem__(self, key)            
 
 class FolderContentsView(BrowserView):
     """
@@ -115,7 +130,28 @@ class FolderContentsTable(object):
     @instance.memoize
     def items(self):
         """
-        """
+        """        
+        contentsMethod = self.contentsMethod()
+
+        results = []
+        for i, obj in enumerate(contentsMethod(self.contentFilter)):
+            if (i + 1) % 2 == 0:
+                table_row_class = "draggable even"
+            else:
+                table_row_class = "draggable odd"
+
+            results.append(
+                LazyDict(
+                    self._lazy_dict_func, id=obj.id, table_row_class=table_row_class
+                )
+            )
+
+        return results
+
+    def _lazy_dict_func(self, di):
+        """Fetch object. Build a dictionary containing metadata for object 
+        and return it."""
+
         context = aq_inner(self.context)
         plone_utils = getToolByName(context, 'plone_utils')
         plone_view = getMultiAdapter((context, self.request), name=u'plone')
@@ -127,69 +163,64 @@ class FolderContentsTable(object):
         use_view_action = site_properties.getProperty('typesUseViewActionInListings', ())
         browser_default = plone_utils.browserDefault(context)
 
-        contentsMethod = self.contentsMethod()
+        obj = self.context._getOb(di['id'])
 
-        results = []
-        for i, obj in enumerate(contentsMethod(self.contentFilter)):
-            if (i + 1) % 2 == 0:
-                table_row_class = "draggable even"
-            else:
-                table_row_class = "draggable odd"
+        url = obj.absolute_url()
+        path = "/".join(obj.getPhysicalPath())
+        icon = plone_view.getIcon(obj);
+        
+        type_class = 'contenttype-' + plone_utils.normalizeString(
+            obj.portal_type)
 
-            url = obj.getURL()
-            path = obj.getPath or "/".join(obj.getPhysicalPath())
-            icon = plone_view.getIcon(obj);
-            
-            type_class = 'contenttype-' + plone_utils.normalizeString(
-                obj.portal_type)
+        try:
+            review_state = portal_workflow.getInfoFor(obj, 'review_state')
+        except WorkflowException:
+            review_state = ''
+        state_class = 'state-' + plone_utils.normalizeString(review_state)
+        relative_url = obj.absolute_url(relative=True)
 
-            review_state = obj.review_state
-            state_class = 'state-' + plone_utils.normalizeString(review_state)
-            relative_url = obj.getURL(relative=True)
+        type_title_msgid = portal_types[obj.portal_type].Title()
+        url_href_title = u'%s: %s' % (translate(type_title_msgid,
+                                                context=self.request),
+                                      safe_unicode(obj.Description()))
 
-            type_title_msgid = portal_types[obj.portal_type].Title()
-            url_href_title = u'%s: %s' % (translate(type_title_msgid,
-                                                    context=self.request),
-                                          safe_unicode(obj.Description))
+        modified = plone_view.toLocalizedTime(
+            obj.ModificationDate(), long_format=1)
 
-            modified = plone_view.toLocalizedTime(
-                obj.ModificationDate, long_format=1)
+        obj_type = obj.Type()
+        if obj_type in use_view_action:
+            view_url = url + '/view'
+        elif obj.restrictedTraverse('@@plone').isStructuralFolder():
+            view_url = url + "/folder_contents"              
+        else:
+            view_url = url
 
-            obj_type = obj.Type
-            if obj_type in use_view_action:
-                view_url = url + '/view'
-            elif obj.is_folderish:
-                view_url = url + "/folder_contents"              
-            else:
-                view_url = url
-
-            is_browser_default = len(browser_default[1]) == 1 and (
-                obj.id == browser_default[1][0])
-                                 
-            results.append(dict(
-                url = url,
-                url_href_title = url_href_title,
-                id  = obj.getId,
-                quoted_id = urllib.quote_plus(obj.getId),
-                path = path,
-                title_or_id = safe_unicode(pretty_title_or_id(plone_utils, obj)),
-                obj_type = obj_type,
-                size = obj.getObjSize,
-                modified = modified,
-                icon = icon.html_tag(),
-                type_class = type_class,
-                wf_state = review_state,
-                state_title = portal_workflow.getTitleForStateOnType(review_state,
-                                                           obj_type),
-                state_class = state_class,
-                is_browser_default = is_browser_default,
-                folderish = obj.is_folderish,
-                relative_url = relative_url,
-                view_url = view_url,
-                table_row_class = table_row_class,
-                is_expired = isExpired(obj),
-            ))
-        return results
+        is_browser_default = len(browser_default[1]) == 1 and (
+            obj.id == browser_default[1][0])
+                             
+        di.update(dict(
+            url = url,
+            url_href_title = url_href_title,
+            id  = obj.getId(),
+            quoted_id = urllib.quote_plus(obj.getId()),
+            path = path,
+            title_or_id = safe_unicode(pretty_title_or_id(plone_utils, obj)),
+            obj_type = obj_type,
+            size = obj.getObjSize(),
+            modified = modified,
+            icon = icon.html_tag(),
+            type_class = type_class,
+            wf_state = review_state,
+            state_title = portal_workflow.getTitleForStateOnType(review_state,
+                                                       obj_type),
+            state_class = state_class,
+            is_browser_default = is_browser_default,
+            folderish = obj.restrictedTraverse('@@plone').isStructuralFolder(),
+            relative_url = relative_url,
+            view_url = view_url,
+            is_expired = isExpired(obj),
+        ))
+        return di
 
     @property
     def orderable(self):
