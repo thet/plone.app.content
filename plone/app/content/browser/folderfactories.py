@@ -38,11 +38,10 @@ class FolderFactoriesView(BrowserView):
     @memoize
     def add_context(self):
         context_state = getMultiAdapter((self.context, self.request), name='plone_context_state')
-        return context_state.folder()
-
-    # NOTE: This is also used by plone.app.contentmenu.menu.FactoriesMenu.
-    # The return value is somewhat dictated by the menu infrastructure, so
-    # be careful if you change it
+        if context_state.is_structural_folder():
+            return self.context
+        else:
+            return context_state.folder()
 
     def addable_types(self, include=None):
         """Return menu item entries in a TAL-friendly form.
